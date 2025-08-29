@@ -16,7 +16,8 @@ class RAGSystem:
         # Initialize core components
         self.document_processor = DocumentProcessor(config.CHUNK_SIZE, config.CHUNK_OVERLAP)
         self.vector_store = VectorStore(config.CHROMA_PATH, config.EMBEDDING_MODEL, config.MAX_RESULTS)
-        self.ai_generator = AIGenerator(config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL)
+        # Provider-agnostic AI generator (Anthropic/OpenAI/Gemini)
+        self.ai_generator = AIGenerator(config)
         self.session_manager = SessionManager(config.MAX_HISTORY)
         
         # Initialize search tools
@@ -118,16 +119,34 @@ class RAGSystem:
         if session_id:
             history = self.session_manager.get_conversation_history(session_id)
         
-        # Generate response using AI with tools
-        response = self.ai_generator.generate_response(
-            query=prompt,
-            conversation_history=history,
-            tools=self.tool_manager.get_tool_definitions(),
-            tool_manager=self.tool_manager
-        )
-        
-        # Get sources from the search tool
-        sources = self.tool_manager.get_last_sources()
+        provider = (self.config.LLM_PROVIDER or "anthropic").strip().lower()
+        if provider == "anthropic":
+            # Use Anthropic tool-calling path
+            response = self.ai_generator.generate_response(
+                query=prompt,
+                conversation_history=history,
+                tools=self.tool_manager.get_tool_definitions(),
+                tool_manager=self.tool_manager,
+            )
+            sources = self.tool_manager.get_last_sources()
+        else:
+            # For providers without tool-calling, perform retrieval first and inject context
+            context_text = self.tool_manager.execute_tool(
+                "search_course_content", query=query
+            )
+            # Build augmented query with retrieved context
+            augmented_query = (
+                "Use the following course materials context to answer. If the context "
+                "does not contain the answer, reply 'No relevant content found.'\n\n"
+                f"Context:\n{context_text}\n\nQuestion: {prompt}"
+            )
+            response = self.ai_generator.generate_response(
+                query=augmented_query,
+                conversation_history=history,
+                tools=None,
+                tool_manager=None,
+            )
+            sources = self.tool_manager.get_last_sources()
 
         # Reset sources after retrieving them
         self.tool_manager.reset_sources()
