@@ -5,7 +5,7 @@ const API_URL = '/api';
 let currentSessionId = null;
 
 // DOM elements
-let chatMessages, chatInput, sendButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, totalCourses, courseTitles, newChatButton;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton = document.getElementById('sendButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
+    newChatButton = document.getElementById('newChatButton');
     
     setupEventListeners();
     createNewSession();
@@ -38,6 +39,11 @@ function setupEventListeners() {
             sendMessage();
         });
     });
+
+    // New Chat button
+    if (newChatButton) {
+        newChatButton.addEventListener('click', handleNewChat);
+    }
 }
 
 
@@ -147,9 +153,39 @@ function escapeHtml(text) {
 // Removed removeMessage function - no longer needed since we handle loading differently
 
 async function createNewSession() {
-    currentSessionId = null;
+    // Request a fresh session from backend; fallback to null if unavailable
+    try {
+        const res = await fetch(`${API_URL}/session/new`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            currentSessionId = data.session_id || null;
+        } else {
+            currentSessionId = null;
+        }
+    } catch {
+        currentSessionId = null;
+    }
+    // Reset chat UI
     chatMessages.innerHTML = '';
     addMessage('Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?', 'assistant', null, true);
+}
+
+async function handleNewChat() {
+    const prev = currentSessionId;
+    // Best-effort cleanup of prior session on backend
+    if (prev) {
+        try {
+            await fetch(`${API_URL}/session/clear`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: prev })
+            });
+        } catch (e) {
+            // ignore cleanup errors
+        }
+    }
+    await createNewSession();
+    chatInput.focus();
 }
 
 // Load course statistics

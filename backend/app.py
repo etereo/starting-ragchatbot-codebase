@@ -51,6 +51,14 @@ class CourseStats(BaseModel):
     total_courses: int
     course_titles: List[str]
 
+class SessionIdRequest(BaseModel):
+    """Request model to identify a session"""
+    session_id: str
+
+class SessionNewResponse(BaseModel):
+    """Response model containing a new session ID"""
+    session_id: str
+
 # API Endpoints
 
 @app.post("/api/query", response_model=QueryResponse)
@@ -82,6 +90,24 @@ async def get_course_stats():
             total_courses=analytics["total_courses"],
             course_titles=analytics["course_titles"]
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/session/new", response_model=SessionNewResponse)
+async def new_session():
+    """Create and return a new session ID"""
+    try:
+        session_id = rag_system.session_manager.create_session()
+        return SessionNewResponse(session_id=session_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/session/clear")
+async def clear_session(req: SessionIdRequest):
+    """Clear all messages from a given session (best-effort cleanup)"""
+    try:
+        rag_system.session_manager.clear_session(req.session_id)
+        return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

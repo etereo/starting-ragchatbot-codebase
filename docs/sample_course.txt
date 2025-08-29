@@ -1,0 +1,13 @@
+Course Title: Introduction to Machine Learning
+Course Link: https://example.com/ml-course
+Course Instructor: Dr. Jane Smith
+
+Lesson 0: Introduction
+Lesson Link: https://example.com/ml-course/lesson0
+
+This is the introduction to the machine learning course. We will cover the basics of supervised and unsupervised learning.
+
+Lesson 1: Linear Regression
+Lesson Link: https://example.com/ml-course/lesson1
+
+Linear regression is a fundamental technique in machine learning used for predicting continuous values.

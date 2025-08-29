@@ -462,6 +462,26 @@ header h1 {
     letter-spacing: 0.5px;
 }
 
+/* New Chat header-style button */
+.section-header-btn {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem 0;
+    border: none;
+    background: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: 100%;
+    text-align: left;
+}
+.section-header-btn:hover,
+.section-header-btn:focus {
+    color: var(--primary-color);
+    outline: none;
+}
+
 .stats-header:focus,
 .suggested-header:focus {
     color: var(--primary-color);
