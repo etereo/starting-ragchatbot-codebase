@@ -1,17 +1,19 @@
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from typing import Dict, Any, List, Optional
 import os
-import tempfile
 import shutil
 
 # Import project modules
 import sys
+import tempfile
+from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from models import Course, Lesson, CourseChunk
-from vector_store import SearchResults
 from config import Config
+from models import Course, CourseChunk, Lesson
+from vector_store import SearchResults
 
 
 @pytest.fixture
@@ -42,10 +44,22 @@ def sample_course():
         course_link="https://example.com/ml-course",
         instructor="Dr. Jane Smith",
         lessons=[
-            Lesson(lesson_number=0, title="Introduction", lesson_link="https://example.com/ml-course/lesson0"),
-            Lesson(lesson_number=1, title="Linear Regression", lesson_link="https://example.com/ml-course/lesson1"),
-            Lesson(lesson_number=2, title="Neural Networks", lesson_link="https://example.com/ml-course/lesson2")
-        ]
+            Lesson(
+                lesson_number=0,
+                title="Introduction",
+                lesson_link="https://example.com/ml-course/lesson0",
+            ),
+            Lesson(
+                lesson_number=1,
+                title="Linear Regression",
+                lesson_link="https://example.com/ml-course/lesson1",
+            ),
+            Lesson(
+                lesson_number=2,
+                title="Neural Networks",
+                lesson_link="https://example.com/ml-course/lesson2",
+            ),
+        ],
     )
 
 
@@ -57,20 +71,20 @@ def sample_course_chunks(sample_course):
             content="Lesson 0 content: This is the introduction to the machine learning course.",
             course_title=sample_course.title,
             lesson_number=0,
-            chunk_index=0
+            chunk_index=0,
         ),
         CourseChunk(
             content="Course Introduction to Machine Learning Lesson 1 content: Linear regression is a fundamental technique.",
             course_title=sample_course.title,
             lesson_number=1,
-            chunk_index=1
+            chunk_index=1,
         ),
         CourseChunk(
             content="Course Introduction to Machine Learning Lesson 2 content: Neural networks are powerful models.",
             course_title=sample_course.title,
             lesson_number=2,
-            chunk_index=2
-        )
+            chunk_index=2,
+        ),
     ]
 
 
@@ -78,18 +92,20 @@ def sample_course_chunks(sample_course):
 def mock_vector_store():
     """Mock vector store for testing"""
     mock_store = Mock()
-    
+
     # Setup default search behavior
     mock_store.search.return_value = SearchResults(
         documents=["Test content about machine learning"],
-        metadata=[{"course_title": "Introduction to Machine Learning", "lesson_number": 1}],
-        distances=[0.8]
+        metadata=[
+            {"course_title": "Introduction to Machine Learning", "lesson_number": 1}
+        ],
+        distances=[0.8],
     )
-    
+
     mock_store._resolve_course_name.return_value = "Introduction to Machine Learning"
     mock_store.get_lesson_link.return_value = "https://example.com/ml-course/lesson1"
     mock_store.get_course_link.return_value = "https://example.com/ml-course"
-    
+
     return mock_store
 
 
@@ -119,19 +135,19 @@ def mock_anthropic_response():
 def mock_anthropic_tool_response():
     """Mock Anthropic API response with tool use"""
     mock_response = Mock()
-    
+
     # Mock tool use content block
     tool_block = Mock()
     tool_block.type = "tool_use"
     tool_block.name = "search_course_content"
     tool_block.input = {"query": "test query"}
     tool_block.id = "tool_123"
-    
+
     # Mock text content block
     text_block = Mock()
     text_block.type = "text"
     text_block.text = "Using search tool..."
-    
+
     mock_response.content = [text_block, tool_block]
     mock_response.stop_reason = "tool_use"
     return mock_response
@@ -141,17 +157,19 @@ def mock_anthropic_tool_response():
 def mock_tool_manager():
     """Mock tool manager for testing"""
     mock_manager = Mock()
-    mock_manager.get_tool_definitions.return_value = [{
-        "name": "search_course_content",
-        "description": "Search course materials",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "What to search for"}
+    mock_manager.get_tool_definitions.return_value = [
+        {
+            "name": "search_course_content",
+            "description": "Search course materials",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "What to search for"}
+                },
+                "required": ["query"],
             },
-            "required": ["query"]
         }
-    }]
+    ]
     mock_manager.execute_tool.return_value = "Test search result"
     mock_manager.get_last_sources.return_value = ["Test Source"]
     mock_manager.get_last_links.return_value = [("Test Course", "https://example.com")]
@@ -171,41 +189,45 @@ def temp_chroma_db():
 def mock_chroma_collection():
     """Mock ChromaDB collection"""
     mock_collection = Mock()
-    
+
     # Default query response
     mock_collection.query.return_value = {
-        'documents': [["Test document content"]],
-        'metadatas': [[{"course_title": "Introduction to Machine Learning", "lesson_number": 1}]],
-        'distances': [[0.8]]
+        "documents": [["Test document content"]],
+        "metadatas": [
+            [{"course_title": "Introduction to Machine Learning", "lesson_number": 1}]
+        ],
+        "distances": [[0.8]],
     }
-    
-    # Default get response  
+
+    # Default get response
     mock_collection.get.return_value = {
-        'ids': ["Introduction to Machine Learning"],
-        'metadatas': [{
-            "title": "Introduction to Machine Learning",
-            "instructor": "Dr. Jane Smith",
-            "course_link": "https://example.com/ml-course",
-            "lessons_json": '[{"lesson_number": 1, "lesson_title": "Introduction", "lesson_link": "https://example.com/lesson1"}]'
-        }]
+        "ids": ["Introduction to Machine Learning"],
+        "metadatas": [
+            {
+                "title": "Introduction to Machine Learning",
+                "instructor": "Dr. Jane Smith",
+                "course_link": "https://example.com/ml-course",
+                "lessons_json": '[{"lesson_number": 1, "lesson_title": "Introduction", "lesson_link": "https://example.com/lesson1"}]',
+            }
+        ],
     }
-    
+
     return mock_collection
 
 
 class MockChromaClient:
     """Mock ChromaDB client for testing"""
-    
+
     def __init__(self, path=None, settings=None):
         self.path = path
         self.settings = settings
         self.collections = {}
-    
+
     def get_or_create_collection(self, name, embedding_function=None):
         if name not in self.collections:
             self.collections[name] = mock_chroma_collection()
         return self.collections[name]
-    
+
     def delete_collection(self, name):
         if name in self.collections:
             del self.collections[name]
@@ -229,14 +251,14 @@ def create_test_search_results(
     documents: List[str] = None,
     metadata: List[Dict] = None,
     distances: List[float] = None,
-    error: str = None
+    error: str = None,
 ) -> SearchResults:
     """Utility function to create test search results"""
     return SearchResults(
         documents=documents or [],
         metadata=metadata or [],
         distances=distances or [],
-        error=error
+        error=error,
     )
 
 
@@ -261,19 +283,21 @@ This is the advanced topics lesson content.
 @pytest.fixture(autouse=True)
 def prevent_actual_api_calls():
     """Prevent actual API calls during testing"""
-    with patch('anthropic.Anthropic') as mock_anthropic, \
-         patch('openai.OpenAI') as mock_openai, \
-         patch('google.generativeai.configure') as mock_gemini_config, \
-         patch('google.generativeai.GenerativeModel') as mock_gemini_model:
-        
+    with (
+        patch("anthropic.Anthropic") as mock_anthropic,
+        patch("openai.OpenAI") as mock_openai,
+        patch("google.generativeai.configure") as mock_gemini_config,
+        patch("google.generativeai.GenerativeModel") as mock_gemini_model,
+    ):
+
         # Setup mock responses
         mock_anthropic.return_value.messages.create.return_value = Mock()
         mock_openai.return_value.chat.completions.create.return_value = Mock()
         mock_gemini_model.return_value.generate_content.return_value = Mock()
-        
+
         yield {
-            'anthropic': mock_anthropic,
-            'openai': mock_openai, 
-            'gemini_config': mock_gemini_config,
-            'gemini_model': mock_gemini_model
+            "anthropic": mock_anthropic,
+            "openai": mock_openai,
+            "gemini_config": mock_gemini_config,
+            "gemini_model": mock_gemini_model,
         }

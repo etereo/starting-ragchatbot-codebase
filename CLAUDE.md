@@ -53,8 +53,48 @@ uv run uvicorn app:app --reload --port 8000
 ### Adding Course Documents
 Place PDF/DOCX/TXT files in the `docs/` folder. The system will automatically load them on startup.
 
-### Testing
-Currently, there are no established test patterns in this codebase. If you add tests, follow the existing code structure and patterns.
+### Code Quality & Testing
+
+#### Quick Setup
+```bash
+# Set up development environment with quality tools
+uv sync --group dev
+
+# Install pre-commit hooks (optional but recommended)
+./scripts/setup-hooks.sh
+```
+
+#### Code Formatting & Linting
+```bash
+# Format code with Black and isort
+./scripts/format.sh
+
+# Check code formatting and linting
+./scripts/lint.sh
+
+# Run type checking
+./scripts/typecheck.sh
+
+# Run all quality checks (format check + linting + type checking)
+./scripts/quality-check.sh
+```
+
+#### Testing
+```bash
+# Run tests
+./scripts/test.sh
+```
+
+#### Pre-commit Hooks
+The project includes pre-commit hooks that automatically run quality checks before each commit. This ensures consistent code quality and catches issues early.
+
+#### Quality Tools Used
+- **Black** for code formatting (line length: 88)
+- **isort** for import organization
+- **flake8** for linting
+- **mypy** for type checking
+- **pytest** for testing
+- **pre-commit** for automated quality checks
 
 ## Key URLs
 - Web Interface: http://localhost:8000

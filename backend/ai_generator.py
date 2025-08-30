@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 class AIGenerator:
@@ -32,7 +32,7 @@ class AIGenerator:
         "- No meta-commentary: Provide direct answers only — do not describe your tools or reasoning.\n\n"
         "All responses must be: 1) Brief and focused, 2) Educational, 3) Clear, 4) Example-supported when helpful."
     )
-    
+
     # System prompt for OpenAI/Gemini (without tool calling)
     SYSTEM_PROMPT_NO_TOOLS = (
         "You are an AI assistant specialized in course materials and educational content. "
@@ -48,15 +48,22 @@ class AIGenerator:
         # Lazy-import provider SDKs to avoid hard dependency at import time.
         if self.provider == "anthropic":
             import anthropic  # type: ignore
+
             self._anthropic = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
             self._anthropic_model = cfg.ANTHROPIC_MODEL
-            self._base_params = {"model": self._anthropic_model, "temperature": 0, "max_tokens": 800}
+            self._base_params = {
+                "model": self._anthropic_model,
+                "temperature": 0,
+                "max_tokens": 800,
+            }
         elif self.provider == "openai":
             from openai import OpenAI  # type: ignore
+
             self._openai = OpenAI(api_key=cfg.OPENAI_API_KEY)
             self._openai_model = cfg.OPENAI_MODEL
         elif self.provider == "gemini":
             import google.generativeai as genai  # type: ignore
+
             if not cfg.GEMINI_API_KEY:
                 # allow None; error will be raised on first call
                 pass
@@ -82,10 +89,11 @@ class AIGenerator:
 
         # Choose appropriate system prompt based on provider
         base_prompt = (
-            self.SYSTEM_PROMPT_ANTHROPIC if self.provider == "anthropic" 
+            self.SYSTEM_PROMPT_ANTHROPIC
+            if self.provider == "anthropic"
             else self.SYSTEM_PROMPT_NO_TOOLS
         )
-        
+
         system_content = (
             f"{base_prompt}\n\nPrevious conversation:\n{conversation_history}"
             if conversation_history
@@ -113,7 +121,7 @@ class AIGenerator:
         max_rounds = 2
         round_count = 0
         messages = [{"role": "user", "content": query}]
-        
+
         while round_count < max_rounds:
             api_params: Dict[str, Any] = {
                 **self._base_params,
@@ -125,22 +133,24 @@ class AIGenerator:
                 api_params["tool_choice"] = {"type": "auto"}
 
             response = self._anthropic.messages.create(**api_params)
-            
+
             # Add assistant response to conversation
             messages.append({"role": "assistant", "content": response.content})
-            
+
             # Check if tool use occurred
             if getattr(response, "stop_reason", None) == "tool_use" and tool_manager:
                 # Execute tools and add results to conversation
-                tool_results = self._execute_tools_and_build_results(response, tool_manager)
+                tool_results = self._execute_tools_and_build_results(
+                    response, tool_manager
+                )
                 if tool_results:
                     messages.append({"role": "user", "content": tool_results})
                     round_count += 1
                     continue
-            
+
             # No tool use - return final response
             return response.content[0].text
-        
+
         # Max rounds reached - make final call without tools
         final_params = {
             **self._base_params,
@@ -155,12 +165,16 @@ class AIGenerator:
         tool_results = []
         for content_block in response.content:
             if getattr(content_block, "type", None) == "tool_use":
-                tool_result = tool_manager.execute_tool(content_block.name, **content_block.input)
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": content_block.id,
-                    "content": tool_result,
-                })
+                tool_result = tool_manager.execute_tool(
+                    content_block.name, **content_block.input
+                )
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": tool_result,
+                    }
+                )
         return tool_results
 
     def _call_openai(self, system_content: str, query: str) -> str:
@@ -180,7 +194,9 @@ class AIGenerator:
     def _call_gemini(self, system_content: str, query: str) -> str:
         if not getattr(self.cfg, "GEMINI_API_KEY", ""):
             raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
-        model = self._gemini.GenerativeModel(self._gemini_model_name, system_instruction=system_content)
+        model = self._gemini.GenerativeModel(
+            self._gemini_model_name, system_instruction=system_content
+        )
         resp = model.generate_content(query)
         # Handle candidates/safety
         try:
