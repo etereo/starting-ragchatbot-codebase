@@ -326,6 +326,15 @@ header h1 {
     color: var(--text-secondary);
 }
 
+.sources-content a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.sources-content a:hover {
+    color: var(--primary-hover);
+}
+
 /* Markdown formatting styles */
 .message-content h1,
 .message-content h2,
@@ -355,6 +364,17 @@ header h1 {
 .message-content li {
     margin: 0.25rem 0;
     line-height: 1.6;
+}
+
+/* Links inside assistant messages */
+.message-content a {
+    color: var(--primary-color);
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.message-content a:hover {
+    color: var(--primary-hover);
 }
 
 .message-content code {
@@ -545,17 +565,29 @@ header h1 {
 
 /* New Chat header-style button */
 .section-header-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    background: none;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
     padding: 0.5rem 0;
-    border: none;
-    background: none;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     width: 100%;
     text-align: left;
+    outline: none;
+}
+.section-header-btn::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 0.5rem;
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
 }
 .section-header-btn:hover,
 .section-header-btn:focus {

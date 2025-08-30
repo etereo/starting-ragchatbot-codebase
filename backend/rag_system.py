@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 from ai_generator import AIGenerator
 from document_processor import DocumentProcessor
 from models import Course, CourseChunk, Lesson
-from search_tools import CourseSearchTool, ToolManager
+from search_tools import CourseSearchTool, ToolManager, CourseOutlineTool
 from session_manager import SessionManager
 from vector_store import VectorStore
 
@@ -30,6 +30,9 @@ class RAGSystem:
         self.tool_manager = ToolManager()
         self.search_tool = CourseSearchTool(self.vector_store)
         self.tool_manager.register_tool(self.search_tool)
+        # Register course outline tool for outline-related queries
+        self.outline_tool = CourseOutlineTool(self.vector_store)
+        self.tool_manager.register_tool(self.outline_tool)
 
     def add_course_document(self, file_path: str) -> Tuple[Course, int]:
         """
@@ -136,6 +139,9 @@ class RAGSystem:
         history = None
         if session_id:
             history = self.session_manager.get_conversation_history(session_id)
+        
+        # Clear any stale sources from prior tool runs
+        self.tool_manager.reset_sources()
 
         provider = (self.config.LLM_PROVIDER or "anthropic").strip().lower()
         if provider == "anthropic":

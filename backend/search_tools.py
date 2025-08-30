@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Dict, Optional
 
 from vector_store import SearchResults, VectorStore
 
@@ -122,6 +122,105 @@ class CourseSearchTool(Tool):
         return "\n\n".join(formatted)
 
 
+class CourseOutlineTool(Tool):
+    """Tool for retrieving the full outline of a course from metadata"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+        self.last_sources = []  # Render-ready source strings (may contain <a>)
+        self.last_links = []    # List of (label, url) tuples
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """Return Anthropic tool definition for this tool"""
+        return {
+            "name": "get_course_outline",
+            "description": (
+                "Return a course outline from the course metadata collection. "
+                "Use this for outline-related queries (e.g., 'show the outline for ...')."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_title": {
+                        "type": "string",
+                        "description": "Course title to fetch the outline for (partial names allowed)"
+                    }
+                },
+                "required": ["course_title"],
+            },
+        }
+
+    def execute(self, course_title: str) -> str:
+        """Fetch and format the outline (title, link, and all lessons)."""
+        import json
+
+        # Resolve the course title using the catalog's semantic search
+        try:
+            resolved_title = self.store._resolve_course_name(course_title) if course_title else None
+        except Exception:
+            resolved_title = None
+
+        if not resolved_title:
+            return f"No course found matching '{course_title}'."
+
+        try:
+            data = self.store.course_catalog.get(ids=[resolved_title])
+        except Exception as e:
+            return f"Error retrieving course outline: {e}"
+
+        if not data or not data.get("metadatas"):
+            return f"No metadata found for course '{resolved_title}'."
+
+        meta = data["metadatas"][0]
+        course_link = meta.get("course_link")
+
+        # Parse lessons
+        lessons = []
+        lessons_json = meta.get("lessons_json")
+        if lessons_json:
+            try:
+                lessons = json.loads(lessons_json)
+            except Exception:
+                lessons = []
+
+        # Prepare sources/links for UI
+        label = resolved_title
+        if course_link:
+            self.last_sources = [f'<a href="{course_link}" target="_blank" rel="noopener">{label}</a>']
+            self.last_links = [(label, course_link)]
+        else:
+            self.last_sources = [label]
+            self.last_links = []
+
+        # Format output per requirements
+        lines = [
+            f"Course Title: {resolved_title}",
+            f"Course Link: {course_link if course_link else 'N/A'}",
+            "Lessons:",
+        ]
+        # Ensure lessons are sorted by lesson_number if possible
+        try:
+            lessons_sorted = sorted(
+                lessons,
+                key=lambda x: (x.get("lesson_number") is None, x.get("lesson_number"))
+            )
+        except Exception:
+            lessons_sorted = lessons
+
+        for lesson in lessons_sorted:
+            num = lesson.get("lesson_number")
+            title = lesson.get("lesson_title") or lesson.get("title") or "Untitled Lesson"
+            if num is not None:
+                lines.append(f"{num}. {title}")
+            else:
+                lines.append(f"- {title}")
+
+        if len(lines) == 3:  # No lessons
+            lines.append("(No lessons found)")
+
+        return "\n".join(lines)
+
+
 class ToolManager:
     """Manages available tools for the AI"""
 
@@ -155,8 +254,17 @@ class ToolManager:
                 return tool.last_sources
         return []
 
+    def get_last_links(self) -> list:
+        """Get (label, url) tuples from the last search operation"""
+        for tool in self.tools.values():
+            if hasattr(tool, 'last_links') and getattr(tool, 'last_links'):
+                return tool.last_links
+        return []
+
     def reset_sources(self):
         """Reset sources from all tools that track sources"""
         for tool in self.tools.values():
-            if hasattr(tool, "last_sources"):
+            if hasattr(tool, 'last_sources'):
                 tool.last_sources = []
+            if hasattr(tool, 'last_links'):
+                tool.last_links = []
