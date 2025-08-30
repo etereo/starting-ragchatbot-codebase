@@ -280,6 +280,62 @@ This is the advanced topics lesson content.
 """
 
 
+@pytest.fixture
+def mock_fastapi_app():
+    """Mock FastAPI app for testing without static file issues"""
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+    
+    app = FastAPI(title="Course Materials RAG System - Test", root_path="")
+    
+    # Add same middleware as main app
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+    
+    return app
+
+
+@pytest.fixture
+def mock_session_manager():
+    """Mock session manager for API tests"""
+    mock_manager = Mock()
+    mock_manager.create_session.return_value = "test-session-123"
+    mock_manager.clear_session.return_value = None
+    mock_manager.get_history.return_value = []
+    mock_manager.add_message.return_value = None
+    return mock_manager
+
+
+@pytest.fixture
+def api_test_data():
+    """Common test data for API tests"""
+    return {
+        "sample_query": "What is machine learning?",
+        "sample_answer": "Machine learning is a subset of artificial intelligence.",
+        "sample_sources": [
+            "https://example.com/course1/lesson1",
+            "https://example.com/course2/lesson2"
+        ],
+        "sample_session_id": "test-session-456",
+        "sample_analytics": {
+            "total_courses": 3,
+            "course_titles": [
+                "Introduction to Machine Learning",
+                "Advanced Deep Learning",
+                "Natural Language Processing"
+            ]
+        }
+    }
+
+
 @pytest.fixture(autouse=True)
 def prevent_actual_api_calls():
     """Prevent actual API calls during testing"""
@@ -288,16 +344,21 @@ def prevent_actual_api_calls():
         patch("openai.OpenAI") as mock_openai,
         patch("google.generativeai.configure") as mock_gemini_config,
         patch("google.generativeai.GenerativeModel") as mock_gemini_model,
+        patch("chromadb.PersistentClient") as mock_chroma_client,
+        patch("sentence_transformers.SentenceTransformer") as mock_transformer,
     ):
-
         # Setup mock responses
         mock_anthropic.return_value.messages.create.return_value = Mock()
         mock_openai.return_value.chat.completions.create.return_value = Mock()
         mock_gemini_model.return_value.generate_content.return_value = Mock()
+        mock_chroma_client.return_value = MockChromaClient()
+        mock_transformer.return_value.encode.return_value = [[0.1, 0.2, 0.3]]
 
         yield {
             "anthropic": mock_anthropic,
             "openai": mock_openai,
             "gemini_config": mock_gemini_config,
             "gemini_model": mock_gemini_model,
+            "chroma_client": mock_chroma_client,
+            "sentence_transformer": mock_transformer,
         }
